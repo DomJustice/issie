@@ -25,8 +25,15 @@ open Symbol
 
 /// submodule for constant definitions used in this module
 module Constants =
-    let xxx = 111 // sample constant definition (with bad name) delete and replace
-                  // your constants. Delete this comment as well!
+    let houseHeight = 150
+    let houseWidth = 250
+    let doorHeight = 25
+    let doorWidth = 5
+    let windowsHorizontalStart = 15
+    let windowsVerticalStart = 25
+    let windowHeight = 20
+    let windowWidth = 10
+    let windowYGap = 10
 
 /// Record containing BusWire helper functions that might be needed by updateWireHook
 /// functions are fed in at the updatewireHook function call in BusWireUpdate.
@@ -39,6 +46,36 @@ type Tick3BusWireHelpers = {
     ReverseWire: Wire -> Wire
     MoveSegment: Model -> Segment -> float -> Wire
     }
+
+let calculateWindowXGap numOfWindows =
+    let windowXRange = Constants.houseWidth - 2*Constants.windowsHorizontalStart
+    (windowXRange - numOfWindows * Constants.windowWidth)/(numOfWindows-1)
+
+let makeWindow windowIdx windowYTop windowGap=
+    let windowLeftX = Constants.windowsHorizontalStart + windowIdx * (windowGap + Constants.windowWidth)
+    let windowPoints = $"{windowLeftX},{windowYTop},
+                                {windowLeftX+Constants.windowWidth},{windowYTop},
+                                {windowLeftX+Constants.windowWidth},{windowYTop+Constants.windowHeight},
+                                {windowLeftX},{windowYTop+Constants.windowHeight}"
+    makePolygon windowPoints {defaultPolygon with Fill = "None"; Stroke = "Black"; StrokeWidth="2px"}
+
+let makeWindowRowForYIdx yIdx windowsH = 
+    let windowRowTopY = Constants.windowsVerticalStart + yIdx * (Constants.windowHeight+Constants.windowYGap)
+
+    if windowsH <> 1
+    then
+        let windowXgap = calculateWindowXGap(windowsH)
+        
+        List.map makeWindow [0..windowsH-1]
+        |> List.map (fun x -> x windowRowTopY windowXgap)
+    else
+        let centerWindowPoints = $"{Constants.houseWidth/2-Constants.windowWidth/2},{windowRowTopY},
+                                {Constants.houseWidth/2+Constants.windowWidth/2},{windowRowTopY},
+                                {Constants.houseWidth/2+Constants.windowWidth/2},{windowRowTopY+Constants.windowHeight},
+                                {Constants.houseWidth/2-Constants.windowWidth/2},{windowRowTopY+Constants.windowHeight}"
+        [makePolygon centerWindowPoints {defaultPolygon with Fill = "None"; Stroke = "Black"; StrokeWidth="2px"}]
+
+        
 
 
 /// Return Some reactElement list to replace drawSymbol by your own code
@@ -56,11 +93,36 @@ let drawSymbolHook
         : ReactElement list option =
     // replace the code below by your own code
     match symbol.Component.Type with
-    | Constant1 (width,constValue, _) ->
-        printfn $"CONSTANT: width={width} ConstVale={constValue}"
-    | _ -> printfn "Symbol Hook"
-    None
+    | Constant1 (windowsH,windowsV, _) when windowsH <= 10 && windowsH >= 1 && windowsV <= 3 && windowsV >= 1->
+        printfn $"House: windowsH={windowsH} windowsV={windowsV}"
+        
+        let housePoints = $"0,0,
+                                    0,{Constants.houseHeight},
+                                    {Constants.houseWidth},{Constants.houseHeight},
+                                    {Constants.houseWidth},0"
 
+        let houseFrame = [makePolygon housePoints {defaultPolygon with Fill = "None"; Stroke = "Black"; StrokeWidth="4px"}]
+
+        let doorPoints = $"{Constants.houseWidth/2-Constants.doorWidth},{Constants.houseHeight-Constants.doorHeight},
+                                {Constants.houseWidth/2+Constants.doorWidth},{Constants.houseHeight-Constants.doorHeight},
+                                {Constants.houseWidth/2+Constants.doorWidth},{Constants.houseHeight},
+                                {Constants.houseWidth/2-Constants.doorWidth},{Constants.houseHeight}"
+
+        let door = [makePolygon doorPoints {defaultPolygon with Fill = "None"; Stroke = "Black"; StrokeWidth="2px"}]
+    
+        let windows = 
+            [0..int windowsV-1]
+            |> List.map makeWindowRowForYIdx
+            |> List.map (fun x -> x windowsH)
+            |> List.concat
+
+        windows
+        |> List.append houseFrame
+        |> List.append door
+        |> Some
+    | _ -> None
+    
+    
 /// Return Some newWire to replace updateWire by your own code defined here.
 /// Choose which wires you control by returning None to use the
 /// default updateWire function defined in BusWireUpdate.
