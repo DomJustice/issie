@@ -142,11 +142,20 @@ let updateWireHook
         (wire: Wire) 
         (tick3Helpers: Tick3BusWireHelpers)
         : Wire option =
-    let segmentInfo =
-        wire.Segments
-        |> List.map (fun (seg:Segment) -> seg.Length,seg.Mode)
-    printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
-    None
+    match (wire.InitialOrientation, List.length wire.Segments) with
+    | Orientation.Horizontal ,7 -> 
+        let segments = wire.Segments
+        let prevSeg = segments[2]
+        let nextSeg = segments[4]
+        let movedSeg = segments[3]
+        let newPrevSeg = { prevSeg with Length = if prevSeg.Length - nextSeg.Length < 1.0 then (prevSeg.Length + nextSeg.Length)/3.0  else prevSeg.Length }
+        let newNextSeg = { nextSeg with Length = if prevSeg.Length - nextSeg.Length < 1.0 then (prevSeg.Length + nextSeg.Length)/3.0 * 2.0 else nextSeg.Length }
+        let newMovedSeg = { movedSeg with Mode = Manual }
+    
+        let newSegments = 
+            segments[.. 1] @ [newPrevSeg; newMovedSeg; newNextSeg] @ segments[5 ..]
+        Some { wire with Segments = newSegments }                    
+    | _ -> None
 
 //---------------------------------------------------------------------//
 //-------included here because it will be used in project work---------//
